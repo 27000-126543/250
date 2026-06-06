@@ -214,15 +214,88 @@ const initTrendChart = (station: HeatExchangeStation) => {
   })
 }
 
+const mockDataSets = [
+  {
+    name: '早高峰 (06:00-09:00)',
+    stations: [
+      { secondarySupplyTemp: 68.5, secondaryReturnTemp: 46.2, supplyPressure: 0.62, returnPressure: 0.41, primaryFlow: 135 },
+      { secondarySupplyTemp: 66.8, secondaryReturnTemp: 45.1, supplyPressure: 0.60, returnPressure: 0.39, primaryFlow: 108 },
+      { secondarySupplyTemp: 67.2, secondaryReturnTemp: 45.8, supplyPressure: 0.63, returnPressure: 0.42, primaryFlow: 175 },
+      { secondarySupplyTemp: 65.9, secondaryReturnTemp: 44.5, supplyPressure: 0.59, returnPressure: 0.38, primaryFlow: 92 },
+      { secondarySupplyTemp: 67.8, secondaryReturnTemp: 45.9, supplyPressure: 0.61, returnPressure: 0.40, primaryFlow: 142 },
+      { secondarySupplyTemp: 66.5, secondaryReturnTemp: 44.8, supplyPressure: 0.58, returnPressure: 0.37, primaryFlow: 78 }
+    ]
+  },
+  {
+    name: '日间平段 (09:00-17:00)',
+    stations: [
+      { secondarySupplyTemp: 63.2, secondaryReturnTemp: 43.5, supplyPressure: 0.58, returnPressure: 0.38, primaryFlow: 115 },
+      { secondarySupplyTemp: 62.5, secondaryReturnTemp: 42.8, supplyPressure: 0.56, returnPressure: 0.36, primaryFlow: 90 },
+      { secondarySupplyTemp: 64.0, secondaryReturnTemp: 43.2, supplyPressure: 0.59, returnPressure: 0.39, primaryFlow: 150 },
+      { secondarySupplyTemp: 61.8, secondaryReturnTemp: 42.0, supplyPressure: 0.55, returnPressure: 0.35, primaryFlow: 78 },
+      { secondarySupplyTemp: 63.5, secondaryReturnTemp: 43.0, supplyPressure: 0.57, returnPressure: 0.37, primaryFlow: 122 },
+      { secondarySupplyTemp: 62.0, secondaryReturnTemp: 42.5, supplyPressure: 0.54, returnPressure: 0.34, primaryFlow: 65 }
+    ]
+  },
+  {
+    name: '晚高峰 (17:00-22:00)',
+    stations: [
+      { secondarySupplyTemp: 70.2, secondaryReturnTemp: 47.8, supplyPressure: 0.65, returnPressure: 0.43, primaryFlow: 148 },
+      { secondarySupplyTemp: 69.0, secondaryReturnTemp: 47.0, supplyPressure: 0.63, returnPressure: 0.41, primaryFlow: 118 },
+      { secondarySupplyTemp: 70.8, secondaryReturnTemp: 47.5, supplyPressure: 0.66, returnPressure: 0.44, primaryFlow: 192 },
+      { secondarySupplyTemp: 68.2, secondaryReturnTemp: 46.5, supplyPressure: 0.62, returnPressure: 0.40, primaryFlow: 100 },
+      { secondarySupplyTemp: 69.8, secondaryReturnTemp: 47.2, supplyPressure: 0.64, returnPressure: 0.42, primaryFlow: 158 },
+      { secondarySupplyTemp: 68.5, secondaryReturnTemp: 46.8, supplyPressure: 0.61, returnPressure: 0.39, primaryFlow: 85 }
+    ]
+  },
+  {
+    name: '夜间低谷 (22:00-06:00)',
+    stations: [
+      { secondarySupplyTemp: 58.5, secondaryReturnTemp: 40.2, supplyPressure: 0.52, returnPressure: 0.33, primaryFlow: 85 },
+      { secondarySupplyTemp: 57.8, secondaryReturnTemp: 39.5, supplyPressure: 0.50, returnPressure: 0.31, primaryFlow: 68 },
+      { secondarySupplyTemp: 59.2, secondaryReturnTemp: 40.0, supplyPressure: 0.53, returnPressure: 0.34, primaryFlow: 110 },
+      { secondarySupplyTemp: 57.0, secondaryReturnTemp: 38.8, supplyPressure: 0.49, returnPressure: 0.30, primaryFlow: 58 },
+      { secondarySupplyTemp: 58.8, secondaryReturnTemp: 39.8, supplyPressure: 0.51, returnPressure: 0.32, primaryFlow: 92 },
+      { secondarySupplyTemp: 57.5, secondaryReturnTemp: 39.2, supplyPressure: 0.48, returnPressure: 0.29, primaryFlow: 48 }
+    ]
+  },
+  {
+    name: '降温天气模式',
+    stations: [
+      { secondarySupplyTemp: 72.0, secondaryReturnTemp: 49.0, supplyPressure: 0.68, returnPressure: 0.45, primaryFlow: 155 },
+      { secondarySupplyTemp: 70.8, secondaryReturnTemp: 48.2, supplyPressure: 0.66, returnPressure: 0.43, primaryFlow: 125 },
+      { secondarySupplyTemp: 72.5, secondaryReturnTemp: 48.8, supplyPressure: 0.69, returnPressure: 0.46, primaryFlow: 205 },
+      { secondarySupplyTemp: 69.8, secondaryReturnTemp: 47.5, supplyPressure: 0.64, returnPressure: 0.42, primaryFlow: 108 },
+      { secondarySupplyTemp: 71.5, secondaryReturnTemp: 48.5, supplyPressure: 0.67, returnPressure: 0.44, primaryFlow: 168 },
+      { secondarySupplyTemp: 70.2, secondaryReturnTemp: 48.0, supplyPressure: 0.65, returnPressure: 0.42, primaryFlow: 95 }
+    ]
+  }
+]
+
+let currentDataSetIndex = -1
+
 onMounted(() => {
+  console.log('[实时监测] 启动数据更新定时器，每5秒切换一组模拟数据')
   timer = window.setInterval(() => {
-    dataStore.heatExchangeStations.forEach(station => {
-      if (station.status !== 'offline') {
-        station.secondarySupplyTemp = Math.round((station.secondarySupplyTemp + (Math.random() - 0.5) * 0.8) * 10) / 10
-        station.secondaryReturnTemp = Math.round((station.secondaryReturnTemp + (Math.random() - 0.5) * 0.5) * 10) / 10
-        station.supplyPressure = Math.round((station.supplyPressure + (Math.random() - 0.5) * 0.03) * 100) / 100
-        station.returnPressure = Math.round((station.returnPressure + (Math.random() - 0.5) * 0.02) * 100) / 100
-        station.primaryFlow = Math.round(station.primaryFlow + (Math.random() - 0.5) * 3)
+    let newIndex
+    do {
+      newIndex = Math.floor(Math.random() * mockDataSets.length)
+    } while (newIndex === currentDataSetIndex && mockDataSets.length > 1)
+    currentDataSetIndex = newIndex
+    
+    const dataSet = mockDataSets[currentDataSetIndex]
+    console.log(`[实时监测] 切换到数据模式: ${dataSet.name}`)
+    
+    dataStore.heatExchangeStations.forEach((station, idx) => {
+      if (station.status !== 'offline' && idx < dataSet.stations.length) {
+        const mockData = dataSet.stations[idx]
+        const variation = 0.98 + Math.random() * 0.04
+        
+        station.secondarySupplyTemp = Math.round(mockData.secondarySupplyTemp * variation * 10) / 10
+        station.secondaryReturnTemp = Math.round(mockData.secondaryReturnTemp * variation * 10) / 10
+        station.supplyPressure = Math.round(mockData.supplyPressure * variation * 100) / 100
+        station.returnPressure = Math.round(mockData.returnPressure * variation * 100) / 100
+        station.primaryFlow = Math.round(mockData.primaryFlow * variation)
       }
     })
   }, 5000)

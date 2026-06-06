@@ -1,40 +1,184 @@
 import type { WeatherForecast, StationSchedule, HeatExchangeStation } from '@/types'
 
+const BUILDING_INSULATION_FACTOR: Record<string, number> = {
+  '新建小区': 0.85,
+  '老旧小区': 1.15,
+  '商业建筑': 1.0,
+  '学校医院': 0.95,
+  'default': 1.0
+}
+
+const PIPE_HEAT_LOSS_TABLE = [
+  { diameter: 100, lossPerKm: 8 },
+  { diameter: 200, lossPerKm: 12 },
+  { diameter: 300, lossPerKm: 15 },
+  { diameter: 400, lossPerKm: 18 },
+  { diameter: 500, lossPerKm: 22 },
+  { diameter: 600, lossPerKm: 26 },
+  { diameter: 700, lossPerKm: 30 }
+]
+
+export const calculateBuildingType = (stationName: string): string => {
+  if (stationName.includes('花园') || stationName.includes('家园') || stationName.includes('华庭')) return '新建小区'
+  if (stationName.includes('里') || stationName.includes('小区')) return '老旧小区'
+  if (stationName.includes('商业') || stationName.includes('广场')) return '商业建筑'
+  if (stationName.includes('学校') || stationName.includes('医院') || stationName.includes('学府')) return '学校医院'
+  return 'default'
+}
+
 export const calculateHeatLoad = (
   weather: WeatherForecast,
   heatingArea: number,
-  historicalFactor: number = 1.0
+  buildingType: string = 'default',
+  pipeLength: number = 2.0,
+  pipeDiameter: number = 300
 ): number => {
-  const baseTemp = 18
-  const tempDiff = baseTemp - weather.temperature
-  const heatIndex = 1 + 0.08 * tempDiff
-  const windFactor = 1 + weather.windSpeed * 0.02
-  const humidityFactor = 1 + (weather.humidity - 50) * 0.005
-  const areaFactor = heatingArea * 0.08
+  console.log('[热负荷预测API] 开始计算热负荷...')
+  console.log('[热负荷预测API] 输入参数:', { weather, heatingArea, buildingType, pipeLength, pipeDiameter })
 
-  return areaFactor * heatIndex * windFactor * humidityFactor * historicalFactor
+  const baseTemp = 18
+  const tempDiff = Math.max(0, baseTemp - weather.temperature)
+
+  const tempFactor = 1 + 0.065 * tempDiff + 0.0015 * tempDiff * tempDiff
+  console.log('[热负荷预测API] 温度修正系数:', tempFactor.toFixed(4))
+
+  const windChillFactor = 1 + 0.025 * weather.windSpeed + 0.002 * weather.windSpeed * weather.windSpeed
+  console.log('[热负荷预测API] 风速修正系数:', windChillFactor.toFixed(4))
+
+  const humidityFactor = 1 + (weather.humidity - 50) * 0.004
+  console.log('[热负荷预测API] 湿度修正系数:', humidityFactor.toFixed(4))
+
+  const weatherPenalty: Record<string, number> = {
+    '晴': 1.0,
+    '多云': 1.02,
+    '阴': 1.05,
+    '小雨': 1.1,
+    '小雪': 1.12,
+    '中雪': 1.18,
+    '大雪': 1.25
+  }
+  const weatherFactor = weatherPenalty[weather.weather] || 1.0
+  console.log('[热负荷预测API] 天气修正系数:', weatherFactor.toFixed(4))
+
+  const insulationFactor = BUILDING_INSULATION_FACTOR[buildingType] || 1.0
+  console.log('[热负荷预测API] 建筑保温系数:', insulationFactor.toFixed(4))
+
+  const pipeLossData = PIPE_HEAT_LOSS_TABLE.find(p => p.diameter >= pipeDiameter) || PIPE_HEAT_LOSS_TABLE[3]
+  const pipeHeatLoss = pipeLossData.lossPerKm * pipeLength
+  console.log('[热负荷预测API] 管网热损失补偿:', pipeHeatLoss.toFixed(2), 'W/㎡')
+
+  const baseHeatIndex = 45
+  const areaBaseLoad = heatingArea * baseHeatIndex / 1000000
+  console.log('[热负荷预测API] 面积基础热负荷:', areaBaseLoad.toFixed(2), 'MW')
+
+  const historicalCorrection = 0.98 + Math.random() * 0.04
+  console.log('[热负荷预测API] 历史数据修正系数:', historicalCorrection.toFixed(4))
+
+  const totalLoad = areaBaseLoad * tempFactor * windChillFactor * humidityFactor * weatherFactor * insulationFactor * historicalCorrection + pipeHeatLoss * heatingArea / 1000000
+
+  const randomVariation = 0.97 + Math.random() * 0.06
+  const finalLoad = Math.round(totalLoad * randomVariation * 100) / 100
+
+  console.log('[热负荷预测API] 最终预测热负荷:', finalLoad, 'MW')
+  return finalLoad
 }
 
 export const generateStationSchedule = (
   station: HeatExchangeStation,
   targetHeatLoad: number,
-  totalHeatLoad: number
+  totalHeatLoad: number,
+  weather: WeatherForecast
 ): StationSchedule => {
+  console.log('[调度计算API] 计算换热站调度参数:', station.name)
+
   const loadRatio = targetHeatLoad / totalHeatLoad
+  console.log('[调度计算API] 负荷占比:', (loadRatio * 100).toFixed(2) + '%')
+
   const baseFlow = station.primaryFlow || 100
   const baseTemp = station.secondarySupplyTemp || 60
 
-  const adjustedFlow = Math.round(baseFlow * (1 + (loadRatio - 0.125) * 0.5))
-  const adjustedTemp = Math.round(baseTemp + (loadRatio - 0.125) * 20)
-  const valveOpening = Math.round(70 + loadRatio * 30)
+  const tempDiff = Math.max(0, 18 - weather.temperature)
+  const flowTempFactor = 1 + tempDiff * 0.015
+
+  const hydronicBalanceOffset = (Math.random() - 0.5) * 0.08
+  const adjustedFlow = Math.round(baseFlow * (1 + (loadRatio - 0.125) * 0.7 + hydronicBalanceOffset) * flowTempFactor)
+
+  const supplyTempBase = 50 + tempDiff * 1.2
+  const loadTempAdjust = loadRatio * 15
+  const heatLossCompensation = 2 + pipeHeatLossCompensation(station.heatingArea)
+  const adjustedTemp = Math.round(supplyTempBase + loadTempAdjust + heatLossCompensation + (Math.random() - 0.5) * 2)
+
+  const hydraulicResistance = 0.7 + loadRatio * 0.25
+  const valveOpening = Math.round(50 + (loadRatio * 50) / hydraulicResistance)
+
+  const finalFlow = Math.max(50, Math.min(220, adjustedFlow))
+  const finalTemp = Math.max(52, Math.min(78, adjustedTemp))
+  const finalValve = Math.max(45, Math.min(100, valveOpening))
+
+  console.log('[调度计算API] 计算结果:', {
+    primaryFlow: finalFlow,
+    secondarySupplyTemp: finalTemp,
+    valveOpening: finalValve
+  })
 
   return {
     stationId: station.id,
     stationName: station.name,
-    primaryFlow: Math.max(50, Math.min(200, adjustedFlow)),
-    secondarySupplyTemp: Math.max(55, Math.min(75, adjustedTemp)),
-    valveOpening: Math.max(50, Math.min(100, valveOpening))
+    primaryFlow: finalFlow,
+    secondarySupplyTemp: finalTemp,
+    valveOpening: finalValve
   }
+}
+
+const pipeHeatLossCompensation = (heatingArea: number): number => {
+  if (heatingArea > 180000) return 5
+  if (heatingArea > 150000) return 4
+  if (heatingArea > 120000) return 3
+  if (heatingArea > 100000) return 2
+  return 1
+}
+
+export const simulateHeatLoadPredictionAPI = async (
+  weather: WeatherForecast,
+  stations: HeatExchangeStation[]
+): Promise<{
+  totalHeatLoad: number
+  stationSchedules: (StationSchedule & { heatingArea: number; stationHeatLoad: number })[]
+}> => {
+  console.log('[API模拟] ========== 调用热负荷预测服务 ==========')
+  console.log('[API模拟] 天气预报:', weather)
+  console.log('[API模拟] 换热站数量:', stations.length)
+
+  await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500))
+
+  let totalHeatLoad = 0
+  const stationLoads: { station: HeatExchangeStation; load: number; buildingType: string }[] = []
+
+  stations.forEach(station => {
+    const buildingType = calculateBuildingType(station.name)
+    const pipeLength = 1.5 + Math.random() * 3
+    const pipeDiameter = 200 + Math.floor(Math.random() * 3) * 100
+    const load = calculateHeatLoad(weather, station.heatingArea, buildingType, pipeLength, pipeDiameter)
+    stationLoads.push({ station, load, buildingType })
+    totalHeatLoad += load
+  })
+
+  totalHeatLoad = Math.round(totalHeatLoad * 100) / 100
+
+  console.log('[API模拟] 总预测热负荷:', totalHeatLoad, 'MW')
+
+  const stationSchedules = stationLoads.map(item => {
+    const schedule = generateStationSchedule(item.station, item.load, totalHeatLoad, weather)
+    return {
+      ...schedule,
+      heatingArea: item.station.heatingArea,
+      stationHeatLoad: Math.round(item.load * 100) / 100
+    }
+  })
+
+  console.log('[API模拟] ========== 热负荷预测服务调用完成 ==========')
+
+  return { totalHeatLoad, stationSchedules }
 }
 
 export const generateHistoryLoadData = (days: number = 30) => {

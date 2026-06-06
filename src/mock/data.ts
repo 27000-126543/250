@@ -15,12 +15,12 @@ import type {
 const generateId = () => Math.random().toString(36).substring(2, 10)
 
 const spareParts: SparePart[] = [
-  { id: 'sp001', name: '循环泵轴承', model: 'SKF-6312', quantity: 15, safeStock: 5, unit: '个' },
+  { id: 'sp001', name: '循环泵轴承', model: 'SKF-6312', quantity: 3, safeStock: 5, unit: '个' },
   { id: 'sp002', name: '电动阀门', model: 'DN100', quantity: 8, safeStock: 3, unit: '台' },
-  { id: 'sp003', name: '温度传感器', model: 'PT100', quantity: 20, safeStock: 10, unit: '支' },
-  { id: 'sp004', name: '压力变送器', model: 'YOKOGAWA-EJA', quantity: 6, safeStock: 2, unit: '台' },
+  { id: 'sp003', name: '温度传感器', model: 'PT100', quantity: 5, safeStock: 10, unit: '支' },
+  { id: 'sp004', name: '压力变送器', model: 'YOKOGAWA-EJA', quantity: 1, safeStock: 2, unit: '台' },
   { id: 'sp005', name: '热量表', model: 'DN80', quantity: 5, safeStock: 2, unit: '台' },
-  { id: 'sp006', name: '密封圈', model: 'φ150', quantity: 50, safeStock: 20, unit: '个' },
+  { id: 'sp006', name: '密封圈', model: 'φ150', quantity: 12, safeStock: 20, unit: '个' },
   { id: 'sp007', name: '过滤器滤芯', model: '100目', quantity: 30, safeStock: 10, unit: '个' }
 ]
 

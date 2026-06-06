@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type {
   HeatSource,
   HeatExchangeStation,
@@ -14,18 +14,76 @@ import type {
 } from '@/types'
 import { mockData } from '@/mock/data'
 
+const STORAGE_KEY = 'smart_heating_system_data'
+const STORAGE_VERSION = 'v1.0.1'
+
+const loadFromStorage = () => {
+  try {
+    const savedVersion = localStorage.getItem(STORAGE_KEY + '_version')
+    if (savedVersion !== STORAGE_VERSION) {
+      console.log('[持久化] 数据版本不匹配，清除旧缓存')
+      localStorage.removeItem(STORAGE_KEY)
+      localStorage.setItem(STORAGE_KEY + '_version', STORAGE_VERSION)
+      return null
+    }
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      console.log('[持久化] 从 localStorage 加载数据成功')
+      return parsed
+    }
+  } catch (e) {
+    console.error('[持久化] 加载 localStorage 数据失败:', e)
+  }
+  return null
+}
+
+const saveToStorage = (data: any) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch (e) {
+    console.error('[持久化] 保存到 localStorage 失败:', e)
+  }
+}
+
 export const useDataStore = defineStore('data', () => {
-  const heatSources = ref<HeatSource[]>([...mockData.heatSources])
-  const heatExchangeStations = ref<HeatExchangeStation[]>([...mockData.heatExchangeStations])
-  const pipelines = ref<Pipeline[]>([...mockData.pipelines])
-  const spareParts = ref<SparePart[]>([...mockData.spareParts])
-  const schedulePlans = ref<SchedulePlan[]>([...mockData.schedulePlans])
-  const alarmRecords = ref<AlarmRecord[]>([...mockData.alarmRecords])
-  const maintenanceOrders = ref<MaintenanceOrder[]>([...mockData.maintenanceOrders])
-  const userComplaints = ref<UserComplaint[]>([...mockData.userComplaints])
-  const billingRecords = ref<BillingRecord[]>([...mockData.billingRecords])
-  const users = ref<User[]>([...mockData.users])
+  const savedData = loadFromStorage()
+
+  const heatSources = ref<HeatSource[]>(savedData?.heatSources || [...mockData.heatSources])
+  const heatExchangeStations = ref<HeatExchangeStation[]>(savedData?.heatExchangeStations || [...mockData.heatExchangeStations])
+  const pipelines = ref<Pipeline[]>(savedData?.pipelines || [...mockData.pipelines])
+  const spareParts = ref<SparePart[]>(savedData?.spareParts || [...mockData.spareParts])
+  const schedulePlans = ref<SchedulePlan[]>(savedData?.schedulePlans || [...mockData.schedulePlans])
+  const alarmRecords = ref<AlarmRecord[]>(savedData?.alarmRecords || [...mockData.alarmRecords])
+  const maintenanceOrders = ref<MaintenanceOrder[]>(savedData?.maintenanceOrders || [...mockData.maintenanceOrders])
+  const userComplaints = ref<UserComplaint[]>(savedData?.userComplaints || [...mockData.userComplaints])
+  const billingRecords = ref<BillingRecord[]>(savedData?.billingRecords || [...mockData.billingRecords])
+  const users = ref<User[]>(savedData?.users || [...mockData.users])
   const currentUser = ref<User | null>(users.value[0])
+
+  const persistData = () => {
+    saveToStorage({
+      heatSources: heatSources.value,
+      heatExchangeStations: heatExchangeStations.value,
+      pipelines: pipelines.value,
+      spareParts: spareParts.value,
+      schedulePlans: schedulePlans.value,
+      alarmRecords: alarmRecords.value,
+      maintenanceOrders: maintenanceOrders.value,
+      userComplaints: userComplaints.value,
+      billingRecords: billingRecords.value,
+      users: users.value
+    })
+    console.log('[持久化] 数据已保存到 localStorage')
+  }
+
+  watch(
+    [heatSources, heatExchangeStations, pipelines, spareParts, schedulePlans, alarmRecords, maintenanceOrders, userComplaints, billingRecords, users],
+    () => {
+      persistData()
+    },
+    { deep: true }
+  )
 
   const stationStatusCount = computed(() => {
     return {

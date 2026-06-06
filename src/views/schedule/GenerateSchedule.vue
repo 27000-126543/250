@@ -93,7 +93,9 @@
         <div class="chart-container" ref="loadChartRef" style="height: 300px; margin-top: 20px"></div>
         <div class="step-actions">
           <el-button @click="goToStep(0)">上一步</el-button>
-          <el-button type="primary" @click="generateSchedule">下一步：生成调度参数</el-button>
+          <el-button type="primary" :loading="isGenerating" @click="generateSchedule">
+            {{ isGenerating ? '正在计算...' : '下一步：生成调度参数' }}
+          </el-button>
         </div>
       </div>
 
@@ -161,7 +163,7 @@ import * as echarts from 'echarts'
 import { useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/data'
 import type { WeatherForecast, StationSchedule } from '@/types'
-import { calculateHeatLoad, generateStationSchedule, generateHistoryLoadData } from '@/utils'
+import { calculateHeatLoad, generateStationSchedule, generateHistoryLoadData, simulateHeatLoadPredictionAPI } from '@/utils'
 import { mockData } from '@/mock/data'
 
 const dataStore = useDataStore()
@@ -198,6 +200,8 @@ const goToStep = (s: number) => {
   step.value = s
 }
 
+const isGenerating = ref(false)
+
 const calculatePrediction = () => {
   const activeStations = dataStore.heatExchangeStations.filter(s => s.status !== 'offline')
   let totalLoad = 0
@@ -213,20 +217,26 @@ const calculatePrediction = () => {
   initLoadChart()
 }
 
-const generateSchedule = () => {
+const generateSchedule = async () => {
   const activeStations = dataStore.heatExchangeStations.filter(s => s.status !== 'offline')
-  const totalArea = activeStations.reduce((sum, s) => sum + s.heatingArea, 0)
-
-  stationSchedules.value = activeStations.map(station => {
-    const targetLoad = calculateHeatLoad(weatherForm, station.heatingArea)
-    const schedule = generateStationSchedule(station, targetLoad, predictedHeatLoad.value)
-    return {
-      ...schedule,
-      heatingArea: station.heatingArea
-    }
-  })
-
-  goToStep(2)
+  
+  isGenerating.value = true
+  try {
+    const result = await simulateHeatLoadPredictionAPI(weatherForm, activeStations)
+    
+    predictedHeatLoad.value = result.totalHeatLoad
+    stationSchedules.value = result.stationSchedules
+    
+    initLoadChart()
+    goToStep(2)
+    
+    ElMessage.success('调度方案生成成功！详细计算过程请查看控制台日志')
+  } catch (error) {
+    console.error('调度方案生成失败:', error)
+    ElMessage.error('调度方案生成失败，请重试')
+  } finally {
+    isGenerating.value = false
+  }
 }
 
 const submitApproval = () => {

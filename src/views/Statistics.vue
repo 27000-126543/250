@@ -154,55 +154,94 @@ const stationStats = dataStore.heatExchangeStations.map(s => ({
 
 const exportPDF = async () => {
   ElMessage.info('正在生成PDF报告，请稍候...')
+  console.log('[PDF导出] 开始生成PDF...')
   
   try {
     if (!reportContentRef.value) {
       ElMessage.error('无法获取报告内容')
+      console.error('[PDF导出] reportContentRef 为空')
       return
     }
 
-    const canvas = await html2canvas(reportContentRef.value, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff'
+    console.log('[PDF导出] 等待图表渲染...')
+    await new Promise(resolve => setTimeout(resolve, 200))
+
+    const element = reportContentRef.value
+    console.log('[PDF导出] 开始截图，元素尺寸:', {
+      width: element.offsetWidth,
+      height: element.offsetHeight
     })
 
-    const imgData = canvas.toDataURL('image/png')
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: true,
+      backgroundColor: '#ffffff',
+      imageTimeout: 5000,
+      ignoreElements: (el: Element) => {
+        return el.tagName === 'SCRIPT' || el.tagName === 'STYLE'
+      }
+    })
+
+    console.log('[PDF导出] 截图完成，canvas尺寸:', {
+      width: canvas.width,
+      height: canvas.height
+    })
+
+    const imgData = canvas.toDataURL('image/png', 1.0)
+    console.log('[PDF导出] 图片数据生成完成，大小:', Math.round(imgData.length / 1024), 'KB')
+
     const pdf = new jsPDF('p', 'mm', 'a4')
-    
     const pdfWidth = pdf.internal.pageSize.getWidth()
     const pdfHeight = pdf.internal.pageSize.getHeight()
     const imgWidth = canvas.width
     const imgHeight = canvas.height
     const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
     const imgX = (pdfWidth - imgWidth * ratio) / 2
-    
-    let heightLeft = imgHeight * ratio
-    let position = 0
-    
-    pdf.setFontSize(18)
-    pdf.text('城市智慧供热管网月度运行报告', pdfWidth / 2, 15, { align: 'center' })
-    pdf.setFontSize(10)
-    pdf.text(`生成时间：${new Date().toLocaleString()}`, pdfWidth / 2, 22, { align: 'center' })
-    
-    position = 28
-    heightLeft -= position
-    
-    pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio)
-    
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight * ratio
-      pdf.addPage()
-      pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, imgHeight * ratio)
-      heightLeft -= pdfHeight
+
+    console.log('[PDF导出] PDF参数:', { pdfWidth, pdfHeight, ratio: ratio.toFixed(4) })
+
+    pdf.setFontSize(16)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('城市智慧供热管网月度运行报告', pdfWidth / 2, 12, { align: 'center' })
+    pdf.setFontSize(9)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(`生成时间：${new Date().toLocaleString()}`, pdfWidth / 2, 19, { align: 'center' })
+    pdf.text('统计周期：2026年1月 - 2026年6月', pdfWidth / 2, 24, { align: 'center' })
+
+    const topMargin = 30
+    const contentHeight = pdfHeight - topMargin - 10
+    const scaledImgHeight = imgHeight * ratio
+
+    if (scaledImgHeight <= contentHeight) {
+      console.log('[PDF导出] 单页PDF')
+      pdf.addImage(imgData, 'PNG', imgX, topMargin, imgWidth * ratio, scaledImgHeight)
+    } else {
+      console.log('[PDF导出] 多页PDF，总高度:', scaledImgHeight, 'mm')
+      let heightLeft = scaledImgHeight
+      let position = topMargin
+      let page = 1
+
+      pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, scaledImgHeight)
+      heightLeft -= contentHeight
+
+      while (heightLeft > 0) {
+        pdf.addPage()
+        page++
+        position = heightLeft - scaledImgHeight + 10
+        pdf.addImage(imgData, 'PNG', imgX, position, imgWidth * ratio, scaledImgHeight)
+        heightLeft -= contentHeight
+        console.log('[PDF导出] 添加第', page, '页')
+      }
     }
-    
-    pdf.save('供热系统月度运行报告.pdf')
+
+    pdf.save('供热系统月度运行报告_' + new Date().toISOString().split('T')[0] + '.pdf')
+    console.log('[PDF导出] PDF已保存')
     ElMessage.success('PDF报告已导出成功')
   } catch (error) {
-    console.error('PDF导出失败:', error)
-    ElMessage.error('PDF导出失败，请重试')
+    console.error('[PDF导出] 失败:', error)
+    ElMessage.error('PDF导出失败: ' + (error as Error).message)
   }
 }
 
