@@ -151,7 +151,7 @@
           <div class="info-header">
             <span class="info-title">{{ selectedStation.name }}</span>
             <el-button type="text" size="small" @click="selectedStation = null">
-              <el-icon><Close /></el-icon>
+              <el-icon><CloseBold /></el-icon>
             </el-button>
           </div>
           <el-descriptions :column="1" border size="small">
@@ -184,7 +184,7 @@ import { ref, computed } from 'vue'
 import { useDataStore } from '@/stores/data'
 import type { HeatExchangeStation, Pipeline } from '@/types'
 import { getStatusText } from '@/utils'
-import { Refresh, Close } from '@element-plus/icons-vue'
+import { Refresh, CloseBold } from '@element-plus/icons-vue'
 
 const dataStore = useDataStore()
 const displayMode = ref<'status' | 'load' | 'temp'>('status')

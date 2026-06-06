@@ -218,8 +218,11 @@ onMounted(() => {
   timer = window.setInterval(() => {
     dataStore.heatExchangeStations.forEach(station => {
       if (station.status !== 'offline') {
-        station.secondarySupplyTemp = Math.round((station.secondarySupplyTemp + (Math.random() - 0.5) * 0.5) * 10) / 10
-        station.secondaryReturnTemp = Math.round((station.secondaryReturnTemp + (Math.random() - 0.5) * 0.3) * 10) / 10
+        station.secondarySupplyTemp = Math.round((station.secondarySupplyTemp + (Math.random() - 0.5) * 0.8) * 10) / 10
+        station.secondaryReturnTemp = Math.round((station.secondaryReturnTemp + (Math.random() - 0.5) * 0.5) * 10) / 10
+        station.supplyPressure = Math.round((station.supplyPressure + (Math.random() - 0.5) * 0.03) * 100) / 100
+        station.returnPressure = Math.round((station.returnPressure + (Math.random() - 0.5) * 0.02) * 100) / 100
+        station.primaryFlow = Math.round(station.primaryFlow + (Math.random() - 0.5) * 3)
       }
     })
   }, 5000)

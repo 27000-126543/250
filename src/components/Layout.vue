@@ -2,7 +2,7 @@
   <el-container class="layout-container">
     <el-aside width="240px" class="sidebar">
       <div class="logo">
-        <el-icon :size="28" color="#409eff"><HeatMap /></el-icon>
+        <el-icon :size="28" color="#409eff"><HotWater /></el-icon>
         <span class="logo-text">智慧供热系统</span>
       </div>
       <el-menu
@@ -103,7 +103,7 @@ import {
   Bell,
   User,
   CaretBottom,
-  HeatMap,
+  HotWater,
   SwitchButton
 } from '@element-plus/icons-vue'
 

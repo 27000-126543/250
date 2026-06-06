@@ -45,9 +45,9 @@
         <el-table-column label="级别" width="80">
           <template #default="{ row }">
             <el-icon :size="20" :color="alarmLevelColor(row.level)">
-              <WarningFilled v-if="row.level === 'critical'" />
-              <CircleCloseFilled v-else-if="row.level === 'alarm'" />
-              <InfoFilled v-else />
+              <CircleClose v-if="row.level === 'critical'" />
+              <Warning v-else-if="row.level === 'alarm'" />
+              <Info v-else />
             </el-icon>
           </template>
         </el-table-column>
@@ -79,7 +79,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useDataStore } from '@/stores/data'
 import type { AlarmRecord } from '@/types'
 import { getStatusText, getAlarmLevelText } from '@/utils'
-import { Warning, Bell, WarningFilled, CircleCloseFilled, InfoFilled } from '@element-plus/icons-vue'
+import { Warning, Bell, CircleClose, Info } from '@element-plus/icons-vue'
 
 const dataStore = useDataStore()
 const statusFilter = ref('')
